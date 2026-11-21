@@ -41,37 +41,46 @@ const s = st.load(); s.log.push({ t: now, app: "instagram", action: "open" }, { 
 assert.equal(st.opensToday(s, "instagram", now), 1);
 
 // userscript: run it with a fake page
-function run(url, stored) {
+async function run(url, stored, gm = {}) {
   const u = new URL(url);
+  const app = u.hostname.includes("tiktok") ? "tiktok" : "instagram";
+  if (stored) gm["pass-" + app] = stored;
   const env = {
-    redirected: null, styles: 0,
+    redirected: null, styles: 0, gm,
     location: { hostname: u.hostname, pathname: u.pathname, search: u.search, hash: u.hash, href: u.href,
-      replace(x) { env.redirected = x; } },
-    localStorage: { d: stored ? { "pause-pass-until": String(stored) } : {}, getItem(k) { return this.d[k] ?? null; }, setItem(k, v) { this.d[k] = v; } },
+      replace(x) { env.redirected ??= x; } },
+    GM: { getValue: async (k, d) => gm[k] ?? d, setValue: async (k, v) => { gm[k] = v; } },
     history: { replaceState() {} },
     document: { head: { append() { env.styles++; } }, createElement: () => ({}) },
-    setInterval() {}, Date,
+    setInterval() {}, Date, encodeURIComponent,
   };
-  vm.runInNewContext(readFileSync("docs/pause.user.js", "utf8").replace("https://olzhasmyrzakhmet.github.io/pause", "https://x.test"), env);
+  await vm.runInNewContext(readFileSync("docs/pause.user.js", "utf8").replace("https://olzhasmyrzakhmet.github.io/pause", "https://x.test"), env);
   return env;
 }
 const later = Date.now() + 10 * 60e3;
-let e = run("https://www.instagram.com/");
+let e = await run("https://www.instagram.com/");
 assert.match(e.redirected, /^https:\/\/x\.test\/pause\.html\?app=instagram&back=https%3A%2F%2Fwww\.instagram\.com%2F$/);
-e = run("https://www.tiktok.com/foryou");
+e = await run("https://www.tiktok.com/foryou");
 assert.match(e.redirected, /app=tiktok/);
-e = run("https://www.instagram.com/#pause-pass=" + later);
+e = await run("https://www.instagram.com/#pause-pass=" + later);
 assert.equal(e.redirected, null); assert.equal(e.styles, 1);
-e = run("https://www.instagram.com/#pause-pass=99999999999999"); // forged huge pass gets capped
-assert.ok(+e.localStorage.d["pause-pass-until"] <= Date.now() + 60 * 60e3);
-e = run("https://www.instagram.com/reels/", later);
+// pass lives in extension storage, so it survives Instagram wiping its own localStorage and www <-> bare domain hops
+e = await run("https://instagram.com/", null, e.gm);
+assert.equal(e.redirected, null);
+e = await run("https://www.instagram.com/#pause-pass=99999999999999"); // forged huge pass gets capped
+assert.ok(e.gm["pass-instagram"] <= Date.now() + 60 * 60e3);
+e = await run("https://www.instagram.com/reels/", later);
 assert.equal(e.redirected, "/");
-e = run("https://www.instagram.com/reel/abc123/", later);
+e = await run("https://www.instagram.com/reel/abc123/", later);
 assert.equal(e.redirected, null);
-e = run("https://www.instagram.com/reelsbyanna/", later); // a profile, not the Reels feed
+e = await run("https://www.instagram.com/reelsbyanna/", later); // a profile, not the Reels feed
 assert.equal(e.redirected, null);
-e = run("https://www.instagram.com/explore/", later);
+e = await run("https://www.instagram.com/explore/", later);
 assert.equal(e.redirected, "/explore/search/");
-e = run("https://www.instagram.com/", Date.now() - 1);
+e = await run("https://www.instagram.com/", Date.now() - 1);
 assert.match(e.redirected, /pause\.html/);
+e = await run("https://www.tiktok.com/", later); // instagram pass doesn't open tiktok
+assert.equal(e.redirected, null);
+e = await run("https://www.tiktok.com/", null, { "pass-instagram": later });
+assert.match(e.redirected, /app=tiktok/);
 console.log("all checks passed");

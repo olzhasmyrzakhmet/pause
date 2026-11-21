@@ -125,7 +125,15 @@ if (!s.intention.trim()) {
 } else if (passLeft > 0) {
   // a pass is still running: go back with it, don't hand out a new one (that would push the lock away forever)
   const u = new URL(back); u.hash = "pause-pass=" + s.passUntil[app];
-  location.replace(u.href);
+  const b = s.bounce || { t: 0, n: 0 };
+  b.n = now - b.t < 15e3 ? b.n + 1 : 1; b.t = now; s.bounce = b; save(s);
+  if (b.n < 3) location.replace(u.href);
+  else {
+    // we keep getting sent back here: the userscript isn't accepting the pass. Stop the ping-pong.
+    message("Стоп, зациклилось.", "Скрипт в Safari не принимает пропуск. Переустанови скрипт Pause в Userscripts (открой ссылку ниже) и попробуй снова.");
+    $("home").href = "pause.user.js"; $("home").textContent = "Переустановить скрипт";
+    s.bounce = { t: 0, n: 0 }; save(s);
+  }
 } else if (locked > 0) {
   const tick = () => {
     const left = Math.max(0, Math.ceil((s.lockUntil[app] - Date.now()) / 1000));
