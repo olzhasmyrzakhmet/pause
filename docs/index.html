@@ -57,6 +57,13 @@
 </head>
 <body>
 
+<!-- Home-screen web apps have their own storage, separate from Safari, so the note would not reach the pause screen -->
+<div id="standalone" class="card hidden" style="margin-top:16px;border-color:var(--yellow)">
+  <div class="big" style="font-size:20px">Открой сайт в Safari, а не с иконки</div>
+  <div class="small">У иконки-приложения своя память, отдельная от Safari, поэтому записка не доходит до паузы.
+    Удали иконку и добавь заново: «Поделиться» → «На экран Домой» → выключи «Open as Web App».</div>
+</div>
+
 <!-- TODAY -->
 <div class="tab on" id="t-today">
   <h1 class="page">Today</h1>
@@ -147,6 +154,7 @@
 import { load, save, stats, hourLabel } from "./store.js";
 const $ = (id) => document.getElementById(id);
 const s = load();
+if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("standalone").classList.remove("hidden");
 
 // tabs (remember the last one; #intention deep-links to Apps)
 const open = (t) => {

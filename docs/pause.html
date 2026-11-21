@@ -108,8 +108,20 @@ const locked = (s.lockUntil?.[app] || 0) - now;
 const passLeft = (s.passUntil?.[app] || 0) - now;
 
 if (!s.intention.trim()) {
+  // no note in this browser's storage: write it right here instead of a dead end
   message("Write your note first.", "It's what you'll see here every time.");
-  $("home").href = "./#intention"; $("home").textContent = "Write it";
+  $("home").classList.add("hidden");
+  const box = document.createElement("div");
+  box.innerHTML = `<div class="box" style="margin-top:28px"><label>Note to self</label>
+    <textarea id="first-note" maxlength="200" rows="3" placeholder="Who do you want to be?"
+      style="width:100%;background:none;border:0;outline:none;resize:none;font-size:20px"></textarea></div>
+    <button class="cta" id="first-save" style="margin-top:18px">Save</button>`;
+  $("msg").append(box);
+  $("first-save").onclick = () => {
+    const v = $("first-note").value.trim();
+    if (!v) return $("first-note").focus();
+    s.intention = v; s.intentionAt = Date.now(); save(s); location.reload();
+  };
 } else if (passLeft > 0) {
   // a pass is still running: go back with it, don't hand out a new one (that would push the lock away forever)
   const u = new URL(back); u.hash = "pause-pass=" + s.passUntil[app];
