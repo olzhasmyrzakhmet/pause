@@ -52,7 +52,7 @@ async function run(url, stored, gm = {}) {
     GM: { getValue: async (k, d) => gm[k] ?? d, setValue: async (k, v) => { gm[k] = v; } },
     history: { replaceState() {} },
     document: { head: { append() { env.styles++; } }, createElement: () => ({}) },
-    setInterval() {}, Date, encodeURIComponent,
+    setInterval() {}, Date, encodeURIComponent, decodeURIComponent, RegExp,
   };
   await vm.runInNewContext(readFileSync("docs/pause.user.js", "utf8").replace("https://olzhasmyrzakhmet.github.io/pause", "https://x.test"), env);
   return env;
@@ -83,6 +83,47 @@ e = await run("https://www.tiktok.com/", later); // instagram pass doesn't open 
 assert.equal(e.redirected, null);
 e = await run("https://www.tiktok.com/", null, { "pass-instagram": later });
 assert.match(e.redirected, /app=tiktok/);
+// Instagram modes
+assert.equal(st.modeTarget("dm"), "https://www.instagram.com/direct/inbox/");
+assert.equal(st.modeTarget("saved", "some.user"), "https://www.instagram.com/some.user/saved/");
+assert.equal(st.modeTarget("saved", ""), "https://www.instagram.com/"); // no username -> home
+assert.equal(st.cleanIgUser(" @some.user! "), "some.user"); assert.equal(st.cleanIgUser(".."), "");
+const pu = (target, mode, home) => st.passUrl(target, later, mode, home);
+assert.equal(pu("https://www.instagram.com/direct/inbox/", "dm", "/direct/inbox/"),
+  `https://www.instagram.com/direct/inbox/#pause-pass=${later}&pause-mode=dm&pause-home=%2Fdirect%2Finbox%2F`);
+const IG = "https://www.instagram.com";
+const check = async (gm, path, want) => assert.equal((await run(IG + path, null, gm)).redirected, want, path);
+// messages only: chats + shared posts, no story binge
+e = await run(pu(IG + "/direct/inbox/", "dm", "/direct/inbox/"));
+assert.equal(e.redirected, null); assert.equal(e.gm["mode-instagram"], "dm");
+const dmGm = e.gm;
+for (const p of ["/direct/t/123/", "/p/abc/", "/reel/abc/", "/friend/p/abc/", "/accounts/login/", "/consent/", "/terms/accept/"])
+  await check(dmGm, p, null);
+for (const p of ["/", "/someone/", "/explore/search/", "/stories/someone/1/"]) {
+  dmGm.hops = { t: 0, n: 0 }; await check(dmGm, p, "/direct/inbox/");
+}
+// saved only; logged out on arrival: home still comes from the pause screen, not the login page
+e = await run(IG + "/accounts/login/" + new URL(pu(IG + "/some.user/saved/", "saved", "/some.user/saved/")).hash);
+assert.equal(e.redirected, null); assert.equal(e.gm["home-instagram"], "/some.user/saved/");
+await check(e.gm, "/p/abc/", null);
+await check(e.gm, "/", "/some.user/saved/");
+// loop guard: Instagram bounces /typo/saved/ -> /typo/ -> back... stops after 3 hops
+e = await run(pu(IG + "/typo/saved/", "saved", "/typo/saved/"));
+
+const seq = []; for (let i = 0; i < 4; i++) seq.push(!!(await run(IG + "/typo/", null, e.gm)).redirected);
+assert.deepEqual(seq, [true, true, true, false]); // 4th load: gives up and stays put
+// stories only: feed hidden, chats blocked
+e = await run(pu(IG + "/", "stories", "/"));
+assert.equal(e.redirected, null); assert.equal(e.styles, 2);
+await check(e.gm, "/stories/someone/1/", null);
+await check(e.gm, "/direct/inbox/", "/");
+// unknown mode -> strictest (dm), not everything
+e = await run(IG + `/someone/#pause-pass=${later}&pause-mode=x`);
+assert.equal(e.redirected, "/direct/inbox/");
+// old pass without mode -> everything allowed
+e = await run(IG + `/someone/#pause-pass=${later}`);
+assert.equal(e.redirected, null); assert.equal(e.gm["mode-instagram"], "all");
+
 // backup / restore on the Pause site
 async function runSite(localVal, gm) {
   const env = {

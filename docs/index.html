@@ -113,6 +113,14 @@
     </div>
   </section>
   <section>
+    <h2>Instagram username</h2>
+    <div class="card">
+      <div class="k">Needed for “Saved”. Stays on this phone.</div>
+      <input id="igUser" placeholder="username" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+        style="width:100%;margin-top:10px;background:none;border:0;outline:none;font-size:20px">
+    </div>
+  </section>
+  <section>
     <h2>When I open one</h2>
     <div class="card">
       <div class="set"><span>Wait before "Yes" (sec)</span><input type="number" min="0" inputmode="numeric" id="waitSec"></div>
@@ -151,7 +159,7 @@
 </nav>
 
 <script type="module">
-import { load, save, stats, hourLabel } from "./store.js";
+import { load, save, stats, hourLabel, cleanIgUser } from "./store.js";
 const $ = (id) => document.getElementById(id);
 const s = load();
 if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("standalone").classList.remove("hidden");
@@ -197,6 +205,11 @@ $("save").onclick = () => {
   const v = note.value.trim();
   if (v !== s.intention) { s.intention = v; s.intentionAt = Date.now(); }
   save(s); renderNote(); $("saved").textContent = v ? "Saved" : "Cleared";
+};
+$("igUser").value = s.igUser || "";
+$("igUser").onchange = () => {
+  s.igUser = cleanIgUser($("igUser").value);
+  $("igUser").value = s.igUser; save(s);
 };
 for (const k of ["waitSec", "growSec", "lockMin"]) {
   $(k).value = s[k];

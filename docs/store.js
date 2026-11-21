@@ -67,6 +67,26 @@ export function stats(log, now = Date.now()) {
 export const normWord = (w) => w.normalize("NFKC").toLowerCase().replace(/ё/g, "е").replace(/[^\p{L}\p{N}]/gu, "");
 export const words = (str) => str.trim().split(/\s+/).filter((w) => normWord(w));
 
+// Instagram modes: what the pass lets you into (the userscript enforces it)
+export const IG_MODES = { dm: "Messages", stories: "Stories", saved: "Saved", all: "Everything" };
+export function modeTarget(mode, igUser) {
+  const ig = "https://www.instagram.com";
+  if (mode === "dm") return ig + "/direct/inbox/";
+  if (mode === "saved" && igUser) return `${ig}/${encodeURIComponent(igUser)}/saved/`;
+  return ig + "/";
+}
+// home = where the userscript sends you back to inside the mode (the mode's start page)
+export const passUrl = (target, until, mode, home = "/") => {
+  const u = new URL(target);
+  u.hash = `pause-pass=${until}&pause-mode=${mode}&pause-home=${encodeURIComponent(home)}`;
+  return u.href;
+};
+// Instagram usernames: letters, digits, _ and . — and at least one letter/digit ("." or ".." would change the path)
+export const cleanIgUser = (v) => {
+  const u = String(v).trim().replace(/^@/, "").replace(/[^\w.]/g, "");
+  return /\w/.test(u) ? u : "";
+};
+
 // Only allow going back to the sites we guard (the back URL comes from the query string).
 export function safeBack(url) {
   try {

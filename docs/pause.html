@@ -43,9 +43,16 @@
 <!-- Pick how long -->
 <section id="how" class="grow hidden">
   <div class="eyebrow">Your call</div>
-  <h1>How long?</h1>
+  <h1 id="how-title">How long?</h1>
   <p class="sub" id="how-sub"></p>
-  <div class="row" style="margin-top:28px" id="how-row"></div>
+  <div id="mode-wrap" class="hidden" style="margin-top:28px">
+    <div class="eyebrow" style="margin-top:0">What for</div>
+    <div class="row" style="margin-top:14px" id="mode-row"></div>
+    <p id="mode-hint" class="hidden" style="color:var(--muted);margin-top:10px;font-size:14px">
+      Add your Instagram username in Apps to use Saved.</p>
+    <div class="eyebrow" style="margin-top:28px">How long</div>
+  </div>
+  <div class="row" style="margin-top:14px" id="how-row"></div>
 </section>
 
 <!-- Walked away / locked / no note -->
@@ -61,7 +68,7 @@
 <a class="ghost hidden" id="home" href="./">Back to Today</a>
 
 <script type="module">
-import { load, save, opensToday, ordinal, agoLabel, safeBack, normWord, words as wordsOf } from "./store.js";
+import { load, save, opensToday, ordinal, agoLabel, safeBack, normWord, words as wordsOf, IG_MODES, modeTarget, passUrl } from "./store.js";
 
 const $ = (id) => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -76,18 +83,54 @@ function message(title, sub) {
   $("actions").classList.add("hidden"); $("home").classList.remove("hidden");
 }
 
-function go(min) {
-  const until = Date.now() + min * 60e3;
-  s.lockUntil = { ...(s.lockUntil || {}), [app]: until + s.lockMin * 60e3 };
-  s.passUntil = { ...(s.passUntil || {}), [app]: until };
-  s.log.push({ t: Date.now(), app, action: "continued", min });
+let mode = app === "instagram" ? (s.lastMode || "dm") : "all";
+
+// keepUntil: a pass is already running, only the mode changes (no new time, lock stays put)
+function go(min, keepUntil) {
+  const until = keepUntil || Date.now() + min * 60e3;
+  if (!keepUntil) {
+    s.lockUntil = { ...(s.lockUntil || {}), [app]: until + s.lockMin * 60e3 };
+    s.passUntil = { ...(s.passUntil || {}), [app]: until };
+    s.log.push({ t: Date.now(), app, action: "continued", min });
+  }
+  // Everything: go back where you were. A narrower mode: go to that section.
+  const target = mode === "all" ? back : modeTarget(mode, s.igUser);
+  const home = new URL(target).pathname;
+  s.mode = { ...(s.mode || {}), [app]: mode };
+  s.home = { ...(s.home || {}), [app]: home };
+  if (app === "instagram") s.lastMode = mode;
   save(s);
-  const u = new URL(back); u.hash = "pause-pass=" + until;
-  location.replace(u.href);
+  location.replace(passUrl(target, until, mode, home));
 }
 
-function pickHow() {
+function pickHow(keepUntil) {
   show("how"); $("actions").classList.add("hidden");
+  if (app === "instagram") {
+    $("mode-wrap").classList.remove("hidden");
+    $("how-title").textContent = "Where to?";
+    // switching mid-pass may only narrow: widening to Everything needs a fresh pause
+    const offered = Object.entries(IG_MODES).filter(([k]) => !(keepUntil && k === "all" && mode !== "all"));
+    const renderModes = () => $("mode-row").replaceChildren(...offered.map(([k, label]) => {
+      const b = document.createElement("button");
+      const off = k === "saved" && !s.igUser;
+      b.className = "chip" + (k === mode ? " on" : ""); b.textContent = label; b.disabled = off;
+      if (off) b.style.opacity = .4;
+      b.onclick = () => { mode = k; renderModes(); };
+      return b;
+    }));
+    if (!s.igUser) $("mode-hint").classList.remove("hidden");
+    if (mode === "saved" && !s.igUser) mode = "dm";
+    renderModes();
+  }
+  if (keepUntil) {
+    const left = Math.ceil((keepUntil - Date.now()) / 60e3);
+    $("how-title").textContent = "Switch?";
+    $("how-sub").textContent = `${left} min left. Same time, new place.`;
+    const b = document.createElement("button");
+    b.className = "cta"; b.textContent = "Go"; b.onclick = () => go(0, keepUntil);
+    $("how-row").replaceChildren(b);
+    return;
+  }
   $("how-sub").textContent = `Then it locks for ${s.lockMin} min.`;
   $("how-row").replaceChildren(...[5, 10, 15, 30].map((m) => {
     const b = document.createElement("button");
@@ -122,12 +165,17 @@ if (!s.intention.trim()) {
     if (!v) return $("first-note").focus();
     s.intention = v; s.intentionAt = Date.now(); save(s); location.reload();
   };
+} else if (passLeft > 0 && app === "instagram" && !q.get("back")) {
+  // opened from the Today button while a pass runs: let me switch mode, keep the remaining time
+  mode = s.mode?.instagram || mode;
+  pickHow(s.passUntil[app]);
 } else if (passLeft > 0) {
   // a pass is still running: go back with it, don't hand out a new one (that would push the lock away forever)
-  const u = new URL(back); u.hash = "pause-pass=" + s.passUntil[app];
+  // back to where you were; the userscript moves you to the mode's home if that page is outside the mode
+  const url = passUrl(back, s.passUntil[app], s.mode?.[app] || "all", s.home?.[app] || "/");
   const b = s.bounce || { t: 0, n: 0 };
   b.n = now - b.t < 15e3 ? b.n + 1 : 1; b.t = now; s.bounce = b; save(s);
-  if (b.n < 3) location.replace(u.href);
+  if (b.n < 3) location.replace(url);
   else {
     // we keep getting sent back here: the userscript isn't accepting the pass. Stop the ping-pong.
     message("Стоп, зациклилось.", "Скрипт в Safari не принимает пропуск. Переустанови скрипт Pause в Userscripts (открой ссылку ниже) и попробуй снова.");
