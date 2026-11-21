@@ -1,0 +1,63 @@
+// Self-check: node test.mjs
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+
+globalThis.localStorage = { d: {}, getItem(k) { return this.d[k] ?? null; }, setItem(k, v) { this.d[k] = v; } };
+const st = await import("./docs/store.js");
+
+assert.equal(st.ordinal(1), "1st"); assert.equal(st.ordinal(2), "2nd"); assert.equal(st.ordinal(3), "3rd");
+assert.equal(st.ordinal(11), "11th"); assert.equal(st.ordinal(22), "22nd");
+const now = new Date(2026, 10, 21, 12).getTime();
+assert.equal(st.agoLabel(now - 864e5, now), "You, yesterday");
+assert.equal(st.agoLabel(now, now), "You, today");
+assert.equal(st.safeBack("https://www.instagram.com/direct/inbox/"), "https://www.instagram.com/direct/inbox/");
+assert.equal(st.safeBack("https://evil.com/?instagram.com"), null);
+assert.equal(st.safeBack("https://instagram.com.evil.com/"), null);
+assert.equal(st.safeBack("javascript:alert(1)"), null);
+// Type-it-out matching
+const same = (a, b) => { const x = st.words(a).map(st.normWord), y = st.words(b).map(st.normWord); return x.join(" ") === y.join(" "); };
+assert.ok(same("read — then sleep", "read then sleep"));
+assert.ok(same("sleep early 🌙", "Sleep early"));
+assert.ok(same("café", "café"));
+assert.ok(same("хочу всё успеть", "хочу все успеть"));
+assert.ok(same("Я — читаю!", "я - читаю"));
+assert.ok(!same("want to be more", "want to be"));
+const s = st.load(); s.log.push({ t: now, app: "instagram", action: "open" }, { t: now - 864e5, app: "instagram", action: "open" });
+assert.equal(st.opensToday(s, "instagram", now), 1);
+
+// userscript: run it with a fake page
+function run(url, stored) {
+  const u = new URL(url);
+  const env = {
+    redirected: null, styles: 0,
+    location: { hostname: u.hostname, pathname: u.pathname, search: u.search, hash: u.hash, href: u.href,
+      replace(x) { env.redirected = x; } },
+    localStorage: { d: stored ? { "pause-pass-until": String(stored) } : {}, getItem(k) { return this.d[k] ?? null; }, setItem(k, v) { this.d[k] = v; } },
+    history: { replaceState() {} },
+    document: { head: { append() { env.styles++; } }, createElement: () => ({}) },
+    setInterval() {}, Date,
+  };
+  vm.runInNewContext(readFileSync("docs/pause.user.js", "utf8").replace("https://olzhasmyrzakhmet.github.io/pause", "https://x.test"), env);
+  return env;
+}
+const later = Date.now() + 10 * 60e3;
+let e = run("https://www.instagram.com/");
+assert.match(e.redirected, /^https:\/\/x\.test\/pause\.html\?app=instagram&back=https%3A%2F%2Fwww\.instagram\.com%2F$/);
+e = run("https://www.tiktok.com/foryou");
+assert.match(e.redirected, /app=tiktok/);
+e = run("https://www.instagram.com/#pause-pass=" + later);
+assert.equal(e.redirected, null); assert.equal(e.styles, 1);
+e = run("https://www.instagram.com/#pause-pass=99999999999999"); // forged huge pass gets capped
+assert.ok(+e.localStorage.d["pause-pass-until"] <= Date.now() + 60 * 60e3);
+e = run("https://www.instagram.com/reels/", later);
+assert.equal(e.redirected, "/");
+e = run("https://www.instagram.com/reel/abc123/", later);
+assert.equal(e.redirected, null);
+e = run("https://www.instagram.com/reelsbyanna/", later); // a profile, not the Reels feed
+assert.equal(e.redirected, null);
+e = run("https://www.instagram.com/explore/", later);
+assert.equal(e.redirected, "/explore/search/");
+e = run("https://www.instagram.com/", Date.now() - 1);
+assert.match(e.redirected, /pause\.html/);
+console.log("all checks passed");

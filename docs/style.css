@@ -1,0 +1,57 @@
+:root {
+  --bg: #15120e;          /* warm brown-black, like Refund's "You wrote this" screen */
+  --card: #221d17;
+  --line: #3a3128;
+  --text: #f4ede0;
+  --muted: #a39887;
+  --paper: #f8f2e4;
+  --ink: #2a241c;
+  --tape: rgba(222, 190, 110, .72);
+  --yellow: #ebc978;
+  --stamp: #c8342b;
+  --sans: "Onest", system-ui, sans-serif;
+  --mono: "Space Mono", ui-monospace, monospace;
+  --serif: "Instrument Serif", Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { background: var(--bg); color: var(--text); font-family: var(--sans); }
+body { min-height: 100dvh; padding: max(20px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+button, input, textarea { font: inherit; color: inherit; }
+
+.pill { align-self: center; padding: 10px 22px; border-radius: 999px; background: var(--card); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; }
+.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; margin-top: 56px; }
+.eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+h1 { font-size: 40px; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; margin-top: 12px; }
+.sub { font-family: var(--serif); font-style: italic; font-size: 26px; color: #ddd3c2; margin-top: 12px; }
+.grow { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+/* the taped paper note */
+.note { position: relative; background: var(--paper); color: var(--ink); border-radius: 18px; padding: 28px 22px 18px;
+  transform: rotate(-1.6deg); box-shadow: 6px 8px 0 rgba(0,0,0,.45); margin: 24px 8px; }
+.note::before, .note::after { content: ""; position: absolute; top: -12px; width: 76px; height: 26px; background: var(--tape); }
+.note::before { left: 26px; transform: rotate(-3deg); }
+.note::after { right: 22px; transform: rotate(4deg); }
+.note .date { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6d6253; }
+.note .quote { font-family: var(--serif); font-style: italic; font-size: 34px; line-height: 1.15; margin: 14px 0 18px; word-break: break-word; }
+.note .foot { border-top: 2px dashed #cfc5b2; padding-top: 14px; display: flex; justify-content: space-between; align-items: center; }
+.note .who { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #5a5044; }
+.stamp { font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .16em; color: var(--stamp);
+  border: 2px solid var(--stamp); border-radius: 8px; padding: 4px 10px; transform: rotate(-6deg); text-transform: uppercase; }
+
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 18px 20px; }
+.box label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.line { font-size: 22px; user-select: none; -webkit-user-select: none; }
+.line .done { color: var(--yellow); }
+input.type { width: 100%; margin-top: 14px; padding: 18px 20px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); font-size: 20px; outline: none; }
+input.type:focus { border-color: var(--yellow); }
+
+.cta { width: 100%; padding: 20px; border: 0; border-radius: 999px; background: var(--yellow); color: #1a1610;
+  font-weight: 700; font-size: 18px; box-shadow: 3px 4px 0 #000; cursor: pointer; }
+.ghost { display: block; width: 100%; margin-top: 18px; background: none; border: 0; color: var(--muted); font-weight: 600; font-size: 17px; text-align: center; cursor: pointer; }
+.ghost:not(:disabled) { color: var(--text); }
+.ghost span { font-family: var(--mono); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { padding: 12px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
+.chip.on { background: var(--yellow); color: #1a1610; border-color: var(--yellow); }
+.hidden { display: none !important; }

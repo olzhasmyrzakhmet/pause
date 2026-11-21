@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15120e">
+<title>Slow down</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Onest:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="pill" id="pill">Slow down</div>
+
+<!-- Method 1: You wrote this. Still true? -->
+<section id="still" class="grow hidden" style="justify-content:flex-start">
+  <div class="eyebrow">In your own words</div>
+  <h1>You wrote this.</h1>
+  <p class="sub" id="still-sub"></p>
+  <div class="grow">
+    <div class="note">
+      <div class="date" id="note-date"></div>
+      <div class="quote" id="note-quote"></div>
+      <div class="foot"><span class="who" id="note-who"></span><span class="stamp">Still yours</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Method 2: Type it out -->
+<section id="type" class="grow hidden" style="justify-content:flex-start">
+  <div class="eyebrow">Type it out</div>
+  <h1>Type it first.</h1>
+  <p class="sub">Your own words, then it opens.</p>
+  <div class="grow">
+    <div class="box">
+      <label id="type-count"></label>
+      <div class="line" id="type-line"></div>
+    </div>
+    <input class="type" id="type-input" placeholder="Type it here" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
+</section>
+
+<!-- Pick how long -->
+<section id="how" class="grow hidden">
+  <div class="eyebrow">Your call</div>
+  <h1>How long?</h1>
+  <p class="sub" id="how-sub"></p>
+  <div class="row" style="margin-top:28px" id="how-row"></div>
+</section>
+
+<!-- Walked away / locked / no note -->
+<section id="msg" class="grow hidden">
+  <h1 id="msg-title"></h1>
+  <p class="sub" id="msg-sub"></p>
+</section>
+
+<div id="actions">
+  <button class="cta" id="close">I'm good. Close it</button>
+  <button class="ghost" id="cont" disabled></button>
+</div>
+<a class="ghost hidden" id="home" href="./">Back to Today</a>
+
+<script type="module">
+import { load, save, opensToday, ordinal, agoLabel, safeBack, normWord, words as wordsOf } from "./store.js";
+
+const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+const app = q.get("app") === "tiktok" ? "tiktok" : "instagram";
+const back = safeBack(q.get("back")) || (app === "tiktok" ? "https://www.tiktok.com/" : "https://www.instagram.com/");
+const s = load();
+const now = Date.now();
+const show = (id) => ["still", "type", "how", "msg"].forEach((x) => $(x).classList.toggle("hidden", x !== id));
+
+function message(title, sub) {
+  show("msg"); $("msg-title").textContent = title; $("msg-sub").textContent = sub;
+  $("actions").classList.add("hidden"); $("home").classList.remove("hidden");
+}
+
+function go(min) {
+  const until = Date.now() + min * 60e3;
+  s.lockUntil = { ...(s.lockUntil || {}), [app]: until + s.lockMin * 60e3 };
+  s.passUntil = { ...(s.passUntil || {}), [app]: until };
+  s.log.push({ t: Date.now(), app, action: "continued", min });
+  save(s);
+  const u = new URL(back); u.hash = "pause-pass=" + until;
+  location.replace(u.href);
+}
+
+function pickHow() {
+  show("how"); $("actions").classList.add("hidden");
+  $("how-sub").textContent = `Then it locks for ${s.lockMin} min.`;
+  $("how-row").replaceChildren(...[5, 10, 15, 30].map((m) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = m + " min"; b.onclick = () => go(m);
+    return b;
+  }));
+}
+
+$("close").onclick = () => {
+  s.log.push({ t: Date.now(), app, action: "closed" }); save(s);
+  const n = s.log.filter((e) => e.action === "closed" && new Date(e.t).toDateString() === new Date().toDateString()).length;
+  message("You walked away.", `That's ${n} today.`);
+};
+let step = "still"; // still -> type -> how
+$("cont").onclick = () => step === "still" ? startType() : pickHow();
+
+const locked = (s.lockUntil?.[app] || 0) - now;
+const passLeft = (s.passUntil?.[app] || 0) - now;
+
+if (!s.intention.trim()) {
+  message("Write your note first.", "It's what you'll see here every time.");
+  $("home").href = "./#intention"; $("home").textContent = "Write it";
+} else if (passLeft > 0) {
+  // a pass is still running: go back with it, don't hand out a new one (that would push the lock away forever)
+  const u = new URL(back); u.hash = "pause-pass=" + s.passUntil[app];
+  location.replace(u.href);
+} else if (locked > 0) {
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((s.lockUntil[app] - Date.now()) / 1000));
+    if (!left) return location.reload();
+    message("Locked for now.", `Opens again in ${left / 60 | 0}:${String(left % 60).padStart(2, "0")}.`);
+  };
+  tick(); setInterval(tick, 1000);
+} else {
+  s.log.push({ t: now, app, action: "open" }); save(s);
+  const n = opensToday(s, app, now);
+  show("still");
+  {
+    $("still-sub").textContent = `${ordinal(n)} time today. Still true?`;
+    const d = new Date(s.intentionAt || now);
+    $("note-date").textContent = d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " +
+      d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    $("note-quote").textContent = `"${s.intention}"`;
+    $("note-who").textContent = agoLabel(s.intentionAt || now, now);
+    let left = s.waitSec + s.growSec * (n - 1); // Growing Wait
+    const tick = () => {
+      if (step !== "still") return;
+      if (left <= 0) { $("cont").disabled = false; $("cont").textContent = "Yes, continue"; return; }
+      $("cont").innerHTML = `Yes, continue in <span>${left / 60 | 0}:${String(left % 60).padStart(2, "0")}</span>`;
+      left--; setTimeout(tick, 1000);
+    };
+    tick();
+  }
+}
+
+function startType() {
+  step = "type"; show("type");
+  {
+    const norm = normWord;
+    const words = wordsOf(s.intention);
+    const input = $("type-input");
+    input.onpaste = input.ondrop = (e) => e.preventDefault(); // typing is the point
+    const render = () => {
+      const typed = wordsOf(input.value);
+      let k = 0;
+      while (k < words.length && k < typed.length && norm(typed[k]) === norm(words[k])) k++;
+      $("type-count").textContent = `Your line, ${k} of ${words.length} words`;
+      $("type-line").innerHTML = "";
+      words.forEach((w, i) => {
+        const sp = document.createElement("span");
+        sp.textContent = w + " "; if (i < k) sp.className = "done";
+        $("type-line").append(sp);
+      });
+      const done = k === words.length && typed.length === words.length;
+      $("cont").disabled = !done;
+      $("cont").textContent = done ? "Continue" : "Type it to continue";
+    };
+    input.oninput = render; render(); input.focus();
+  }
+}
+</script>
+</body>
+</html>
