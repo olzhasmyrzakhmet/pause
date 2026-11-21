@@ -15,6 +15,20 @@ assert.equal(st.safeBack("https://www.instagram.com/direct/inbox/"), "https://ww
 assert.equal(st.safeBack("https://evil.com/?instagram.com"), null);
 assert.equal(st.safeBack("https://instagram.com.evil.com/"), null);
 assert.equal(st.safeBack("javascript:alert(1)"), null);
+// stats
+assert.equal(st.hourLabel(0), "12am"); assert.equal(st.hourLabel(15), "3pm"); assert.equal(st.hourLabel(12), "12pm");
+const sat = new Date(2026, 10, 21, 15).getTime(); // Saturday
+assert.equal(new Date(st.weekStart(sat)).getDay(), 1);
+const L = [
+  { t: sat, action: "open" }, { t: sat, action: "closed" },
+  { t: sat - 7 * 864e5, action: "open" }, { t: sat - 7 * 864e5, action: "open" }, { t: sat - 7 * 864e5, action: "continued", min: 15 },
+];
+const S = st.stats(L, sat);
+assert.deepEqual(S.thisWeek, { opens: 1, closed: 1, minutes: 0 });
+assert.deepEqual(S.lastWeek, { opens: 2, closed: 0, minutes: 15 });
+assert.equal(S.peakHour, 15); assert.equal(S.days, 8);
+assert.equal(st.stats([], sat).peakHour, null);
+
 // Type-it-out matching
 const same = (a, b) => { const x = st.words(a).map(st.normWord), y = st.words(b).map(st.normWord); return x.join(" ") === y.join(" "); };
 assert.ok(same("read — then sleep", "read then sleep"));

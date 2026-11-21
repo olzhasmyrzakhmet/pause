@@ -33,6 +33,36 @@ export function agoLabel(t, now = Date.now()) {
   return d <= 0 ? "You, today" : d === 1 ? "You, yesterday" : `You, ${d} days ago`;
 }
 
+export const hourLabel = (h) => (h % 12 || 12) + (h < 12 ? "am" : "pm");
+
+// Monday 00:00 of the week containing t
+export function weekStart(t) {
+  const d = new Date(t); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+  return d.getTime();
+}
+
+export function stats(log, now = Date.now()) {
+  const w0 = weekStart(now), w1 = weekStart(w0 - 1);
+  const sum = (from, to) => {
+    const es = log.filter((e) => e.t >= from && e.t < to);
+    return {
+      opens: es.filter((e) => e.action === "open").length,
+      closed: es.filter((e) => e.action === "closed").length,
+      minutes: es.reduce((a, e) => a + (e.action === "continued" ? e.min || 0 : 0), 0),
+    };
+  };
+  const byHour = Array(24).fill(0);
+  for (const e of log) if (e.action === "open") byHour[new Date(e.t).getHours()]++;
+  const top = Math.max(...byHour);
+  const first = log.length ? Math.min(...log.map((e) => e.t)) : null;
+  return {
+    thisWeek: sum(w0, Infinity), lastWeek: sum(w1, w0), all: sum(0, Infinity), byHour,
+    peakHour: top ? byHour.indexOf(top) : null,
+    days: first == null ? 0 : Math.round((new Date(dayKey(now)) - new Date(dayKey(first))) / 864e5) + 1,
+  };
+}
+
 // Words for Type-it-out: case, punctuation, emoji, ё/е and Unicode forms don't matter.
 export const normWord = (w) => w.normalize("NFKC").toLowerCase().replace(/ё/g, "е").replace(/[^\p{L}\p{N}]/gu, "");
 export const words = (str) => str.trim().split(/\s+/).filter((w) => normWord(w));

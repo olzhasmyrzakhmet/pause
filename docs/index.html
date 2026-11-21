@@ -4,76 +4,174 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15120e">
+<meta name="apple-mobile-web-app-title" content="Pause">
 <title>Pause</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Onest:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-  section { margin-top: 36px; }
+  body { padding-bottom: 120px; }
+  .tab { display: none; }
+  .tab.on { display: block; }
+  h1.page { font-size: 48px; margin-top: 24px; }
+  .kicker { color: var(--muted); font-size: 15px; margin-top: 24px; }
+  section { margin-top: 32px; }
   h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
-  .stats { display: flex; gap: 12px; }
-  .stats .box { flex: 1; }
-  .big { font-size: 40px; font-weight: 700; letter-spacing: -.03em; }
-  textarea { width: 100%; min-height: 110px; background: none; border: 0; outline: none; resize: none; font-size: 20px; }
+  .hero { background: #c5b3e0; color: #1b1524; border-radius: 26px; padding: 22px 24px; box-shadow: 4px 6px 0 #000; margin-top: 24px; }
+  .hero .k { color: #4e3e6e; font-size: 15px; font-weight: 600; }
+  .hero .n { display: flex; align-items: center; gap: 16px; margin: 6px 0 18px; }
+  .hero .n b { font-size: 64px; letter-spacing: -.05em; line-height: 1; }
+  .hero .n span { font-weight: 700; font-size: 18px; line-height: 1.15; }
+  .hero .sub2 { display: flex; border-top: 1px solid #8f7fab; padding-top: 14px; }
+  .hero .sub2 div { flex: 1; color: #4e3e6e; font-weight: 600; }
+  .hero .sub2 strong { display: block; font-size: 24px; }
+  .launch { display: flex; gap: 12px; }
+  .launch .cta { flex: 1; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 20px 22px; margin-bottom: 14px; }
+  .card .k { color: var(--muted); font-size: 14px; }
+  .card .big { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin-top: 8px; }
+  .card .small { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  textarea { width: 100%; min-height: 96px; background: none; border: 0; outline: none; resize: none; font-size: 20px; margin-top: 8px; }
   .counter { text-align: right; color: var(--muted); font-size: 14px; }
-  .apps .cta { margin-bottom: 12px; }
-  .set { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .set:last-child { border: 0; }
-  .set input { width: 70px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; font-family: var(--mono); }
+  .set { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+  .set:last-child { border: 0; padding-bottom: 0; }
+  .set input { width: 72px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; font-family: var(--mono); }
+  .appcard { background: var(--yellow); color: #1a1610; border-radius: 24px; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .appcard b { font-size: 24px; letter-spacing: -.02em; }
+  .appcard small { display: block; color: #6b5a2c; font-weight: 600; }
+  .appcard .tag { background: #fff; border-radius: 999px; padding: 8px 16px; font-weight: 700; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 90px; margin-top: 16px; }
+  .bars i { flex: 1; background: var(--line); border-radius: 3px 3px 0 0; min-height: 3px; }
+  .bars i.peak { background: var(--yellow); }
+  .axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .rowstat { display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); }
+  .rowstat:first-of-type { border: 0; }
+  .rowstat b { font-family: var(--mono); }
+  .down { color: #9dbe8d; } .up { color: #e8806f; }
   #saved { color: var(--yellow); font-size: 14px; margin-left: 12px; }
+  nav { position: fixed; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+  nav .bar { flex: 1; display: flex; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px; }
+  nav button { flex: 1; border: 0; background: none; border-radius: 999px; padding: 16px 0; font-weight: 700; font-size: 16px; color: var(--muted); cursor: pointer; }
+  nav button.on { background: var(--yellow); color: #1a1610; }
 </style>
 </head>
 <body>
-<h1 style="margin-top:20px">Today</h1>
 
-<section>
-  <div class="stats">
-    <div class="box"><div class="big" id="st-walked">0</div><label>walked away</label></div>
-    <div class="box"><div class="big" id="st-opens">0</div><label>pauses</label></div>
+<!-- TODAY -->
+<div class="tab on" id="t-today">
+  <h1 class="page">Today</h1>
+  <div class="hero">
+    <div class="k">This week so far</div>
+    <div class="n"><b id="h-walked">0</b><span>pauses<br>honored</span></div>
+    <div class="sub2">
+      <div><strong id="h-opens">0</strong>pickups</div>
+      <div><strong id="h-hour">—</strong>typical hour</div>
+    </div>
   </div>
-</section>
+  <section>
+    <h2>Open through a pause</h2>
+    <div class="launch">
+      <button class="cta" data-app="instagram">Instagram</button>
+      <button class="cta" data-app="tiktok" style="background:var(--paper)">TikTok</button>
+    </div>
+  </section>
+  <section>
+    <div class="note" style="margin:8px 4px">
+      <div class="date" id="n-date"></div>
+      <div class="quote" id="n-quote"></div>
+      <div class="foot"><span class="who">What you'll see</span><span class="stamp">Still yours</span></div>
+    </div>
+  </section>
+</div>
 
-<section class="apps">
-  <h2>Open through a pause</h2>
-  <button class="cta" data-app="instagram">Instagram</button>
-  <button class="cta" data-app="tiktok" style="background:var(--paper)">TikTok</button>
-</section>
+<!-- APPS -->
+<div class="tab" id="t-apps">
+  <h1 class="page">Apps</h1>
+  <section>
+    <h2>Always on</h2>
+    <div class="appcard"><div><b>Instagram</b><small>No Reels · pause first</small></div><span class="tag">Pause</span></div>
+    <div class="appcard"><div><b>TikTok</b><small>Pause first</small></div><span class="tag">Pause</span></div>
+  </section>
+  <section id="intention">
+    <h2>Your intention</h2>
+    <div class="card">
+      <div class="k">Note to self</div>
+      <textarea id="note" maxlength="200" placeholder="Who do you want to be?"></textarea>
+      <div class="counter"><span id="len">0</span> / 200</div>
+    </div>
+    <h2>Or borrow one</h2>
+    <div class="row" id="borrow"></div>
+    <div style="margin-top:18px;display:flex;align-items:center">
+      <button class="cta" id="save" style="width:auto;padding:14px 36px">Save</button><span id="saved"></span>
+    </div>
+  </section>
+  <section>
+    <h2>When I open one</h2>
+    <div class="card">
+      <div class="set"><span>Wait before "Yes" (sec)</span><input type="number" min="0" inputmode="numeric" id="waitSec"></div>
+      <div class="set"><span>+ each open today (sec)</span><input type="number" min="0" inputmode="numeric" id="growSec"></div>
+      <div class="set"><span>After that, locked for (min)</span><input type="number" min="0" inputmode="numeric" id="lockMin"></div>
+    </div>
+  </section>
+</div>
 
-<section id="intention">
-  <h2>Note to self</h2>
-  <div class="box">
-    <textarea id="note" maxlength="200" placeholder="Who do you want to be?"></textarea>
-    <div class="counter"><span id="len">0</span> / 200</div>
-  </div>
-  <h2 style="margin-top:18px">Or borrow one</h2>
-  <div class="row" id="borrow"></div>
-  <div style="margin-top:18px;display:flex;align-items:center">
-    <button class="cta" id="save" style="width:auto;padding:14px 32px">Save</button><span id="saved"></span>
-  </div>
-</section>
+<!-- WHY -->
+<div class="tab" id="t-why">
+  <div class="kicker" id="w-kicker"></div>
+  <h1 class="page" style="margin-top:4px">Why</h1>
+  <section style="margin-top:20px">
+    <div class="card">
+      <div class="k">Your pattern</div>
+      <div class="big" id="w-head"></div>
+      <div class="small" id="w-sub"></div>
+      <div class="bars" id="w-bars"></div>
+      <div class="axis"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>
+    </div>
+    <div class="card">
+      <div class="k">This week vs last</div>
+      <div class="big" id="w-verdict"></div>
+      <div style="margin-top:12px" id="w-rows"></div>
+    </div>
+  </section>
+</div>
 
-<section>
-  <h2>Pause screen</h2>
-  <div class="box">
-    <div class="set"><span>Wait before "Yes" (sec)</span><input type="number" min="0" id="waitSec"></div>
-    <div class="set"><span>+ each open today (sec)</span><input type="number" min="0" id="growSec"></div>
-    <div class="set"><span>Locked after, for (min)</span><input type="number" min="0" id="lockMin"></div>
+<nav>
+  <div class="bar">
+    <button data-tab="today" class="on">Today</button>
+    <button data-tab="apps">Apps</button>
+    <button data-tab="why">Why</button>
   </div>
-</section>
+</nav>
 
 <script type="module">
-import { load, save, dayKey } from "./store.js";
+import { load, save, stats, hourLabel } from "./store.js";
 const $ = (id) => document.getElementById(id);
 const s = load();
 
-const today = s.log.filter((e) => dayKey(e.t) === dayKey(Date.now()));
-$("st-walked").textContent = today.filter((e) => e.action === "closed").length;
-$("st-opens").textContent = today.filter((e) => e.action === "open").length;
+// tabs (remember the last one; #intention deep-links to Apps)
+const open = (t) => {
+  document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("on", el.id === "t-" + t));
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  scrollTo(0, 0);
+};
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => open(b.dataset.tab));
+if (location.hash === "#intention") open("apps");
 
-document.querySelectorAll("[data-app]").forEach((b) => b.onclick = () => {
-  location.href = `pause.html?app=${b.dataset.app}`;
-});
+document.querySelectorAll("[data-app]").forEach((b) => b.onclick = () => location.href = `pause.html?app=${b.dataset.app}`);
 
+// Today
+const st = stats(s.log, Date.now());
+$("h-walked").textContent = st.thisWeek.closed;
+$("h-opens").textContent = st.thisWeek.opens;
+$("h-hour").textContent = st.peakHour == null ? "—" : hourLabel(st.peakHour);
+const renderNote = () => {
+  const d = new Date(s.intentionAt || Date.now());
+  $("n-date").textContent = s.intention ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "No note yet";
+  $("n-quote").textContent = s.intention ? `"${s.intention}"` : "Write one in Apps.";
+};
+renderNote();
+
+// Apps: intention
 const note = $("note");
 note.value = s.intention; $("len").textContent = note.value.length;
 note.oninput = () => { $("len").textContent = note.value.length; $("saved").textContent = ""; };
@@ -90,13 +188,39 @@ shuffle();
 $("save").onclick = () => {
   const v = note.value.trim();
   if (v !== s.intention) { s.intention = v; s.intentionAt = Date.now(); }
-  save(s); $("saved").textContent = v ? "Saved" : "Cleared";
+  save(s); renderNote(); $("saved").textContent = v ? "Saved" : "Cleared";
 };
-
 for (const k of ["waitSec", "growSec", "lockMin"]) {
   $(k).value = s[k];
   $(k).onchange = () => { s[k] = Math.max(0, Math.round(+$(k).value || 0)); $(k).value = s[k]; save(s); };
 }
+
+// Why
+$("w-kicker").textContent = st.days ? `Day ${st.days}, learning your patterns` : "Starts with your first pause";
+const max = Math.max(1, ...st.byHour);
+$("w-bars").replaceChildren(...st.byHour.map((v, h) => {
+  const i = document.createElement("i"); i.style.height = (v / max * 100) + "%";
+  if (h === st.peakHour) i.className = "peak"; return i;
+}));
+if (st.peakHour == null) {
+  $("w-head").textContent = "Nothing yet.";
+  $("w-sub").textContent = "Open Instagram or TikTok through a pause and this fills in.";
+} else {
+  $("w-head").textContent = `You reach mostly around ${hourLabel(st.peakHour)}.`;
+  $("w-sub").textContent = `You walked away ${st.all.opens ? Math.round(st.all.closed / st.all.opens * 100) : 0}% of the time.`;
+}
+const diff = st.thisWeek.opens - st.lastWeek.opens;
+$("w-verdict").textContent = !st.lastWeek.opens ? "First week." : diff < 0 ? "Better week." : diff > 0 ? "Harder week." : "Same as last.";
+const row = (k, a, b, upIsGood = false) => {
+  const d = document.createElement("div"); d.className = "rowstat";
+  const good = (x) => (x === "up") === upIsGood ? "down" : "up"; // css: .down = green, .up = red
+  const arrow = a < b ? `<span class="${good("down")}">▼ from ${b}</span>` : a > b ? `<span class="${good("up")}">▲ from ${b}</span>` : "";
+  d.innerHTML = `<span>${k}</span><span><b>${a}</b> ${arrow}</span>`; return d;
+};
+$("w-rows").replaceChildren(
+  row("Opens", st.thisWeek.opens, st.lastWeek.opens),
+  row("Walked away", st.thisWeek.closed, st.lastWeek.closed, true),
+  row("Minutes let in", st.thisWeek.minutes, st.lastWeek.minutes));
 </script>
 </body>
 </html>
