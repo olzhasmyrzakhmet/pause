@@ -83,4 +83,27 @@ e = await run("https://www.tiktok.com/", later); // instagram pass doesn't open 
 assert.equal(e.redirected, null);
 e = await run("https://www.tiktok.com/", null, { "pass-instagram": later });
 assert.match(e.redirected, /app=tiktok/);
+// backup / restore on the Pause site
+async function runSite(localVal, gm) {
+  const env = {
+    reloaded: false, gm,
+    location: { hostname: "olzhasmyrzakhmet.github.io", pathname: "/pause/", hash: "", reload() { env.reloaded = true; } },
+    localStorage: { d: localVal ? { "pause.v1": localVal } : {}, getItem(k) { return this.d[k] ?? null; }, setItem(k, v) { this.d[k] = v; } },
+    GM: { getValue: async (k, d) => gm[k] ?? d, setValue: async (k, v) => { gm[k] = v; } },
+    setInterval() {}, Date, JSON,
+  };
+  await vm.runInNewContext(readFileSync("docs/pause.user.js", "utf8"), env);
+  return env;
+}
+const withNote = JSON.stringify({ intention: "be more with friends", log: [] });
+let gm = {};
+let x = await runSite(withNote, gm);                 // note written on the site -> backed up
+assert.equal(gm.state, withNote); assert.equal(x.reloaded, false);
+x = await runSite(null, gm);                          // Safari wiped the site -> restored + reload
+assert.equal(x.localStorage.d["pause.v1"], withNote); assert.equal(x.reloaded, true);
+x = await runSite(null, {});                          // nothing to restore -> no reload
+assert.equal(x.reloaded, false);
+const cleared = JSON.stringify({ intention: "", log: [] });
+x = await runSite(cleared, gm);                       // note cleared on purpose -> stays cleared, backup follows
+assert.equal(x.reloaded, false); assert.equal(gm.state, cleared);
 console.log("all checks passed");

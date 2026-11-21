@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         Pause
 // @description  Instagram/TikTok only through your pause screen. Instagram without Reels.
-// @version      2
+// @version      3
+// @match        *://olzhasmyrzakhmet.github.io/pause/*
 // @match        *://www.instagram.com/*
 // @match        *://instagram.com/*
 // @match        *://www.tiktok.com/*
@@ -15,6 +16,25 @@
 
 (async () => {
   const SITE = "https://olzhasmyrzakhmet.github.io/pause/pause.html";
+
+  // On the Pause site itself: back up note/settings/stats to the extension's storage, and restore them
+  // if Safari wiped the site's localStorage (private tab, cleared data, 7-day cleanup).
+  if (location.hostname.endsWith("github.io")) {
+    const K = "pause.v1";
+    const local = localStorage.getItem(K);
+    const backup = await GM.getValue("state", null);
+    if (local == null && backup) { // wiped entirely (a note you cleared yourself stays cleared)
+      localStorage.setItem(K, backup);
+      // reload once so the page reads the restored data; skip if storage is blocked (would loop)
+      if (localStorage.getItem(K) === backup) return location.reload();
+    }
+    let last = null;
+    const sync = () => { const v = localStorage.getItem(K); if (v != null && v !== last) { last = v; GM.setValue("state", v); } };
+    sync();
+    setInterval(sync, 500);
+    return;
+  }
+
   const MAX_PASS = 60 * 60e3;         // a pass from the hash can never be longer than 1 hour
   const app = /tiktok\.com$/.test(location.hostname) ? "tiktok" : "instagram";
   const KEY = "pass-" + app;           // kept in the extension's own storage: the site can't wipe it
